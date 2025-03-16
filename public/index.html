@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenAPI Generator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        .upload-container {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .file-group {
+            margin-bottom: 20px;
+        }
+        .file-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .file-input {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .file-description {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        #result {
+            margin-top: 20px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 200px;
+            border: 1px solid #ddd;
+            white-space: pre-wrap;
+            display: none;
+        }
+        .status {
+            margin-top: 10px;
+            font-style: italic;
+        }
+        .error {
+            color: #e74c3c;
+        }
+        #downloadBtn {
+            margin-top: 20px;
+            display: none;
+        }
+        .loading {
+            display: inline-block;
+            margin-left: 10px;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,0.1);
+            border-radius: 50%;
+            border-top-color: #3498db;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+<h1>OpenAPI Generator</h1>
+<div class="upload-container">
+    <p>Upload your files to generate an OpenAPI specification file using Claude AI.</p>
+    <div class="file-description" style="margin-bottom: 15px;">
+        <strong>Note:</strong> Files will be processed by your local backend server and sent to Claude API for analysis.
+    </div>
+
+    <div class="file-group">
+        <label for="contextMap">Context Map Graphic:</label>
+        <input type="file" id="contextMap" class="file-input" accept="image/*">
+        <div class="file-description">Upload a context map showing the relationships between services and domains.</div>
+    </div>
+
+    <div class="file-group">
+        <label for="visualGlossary">Visual Glossary Graphic:</label>
+        <input type="file" id="visualGlossary" class="file-input" accept="image/*">
+        <div class="file-description">Upload a visual glossary defining the key terms and concepts.</div>
+    </div>
+
+    <div class="file-group">
+        <label for="apiSkeleton">OpenAPI REST Skeleton File:</label>
+        <input type="file" id="apiSkeleton" class="file-input" accept=".json,.yaml,.yml">
+        <div class="file-description">Upload your skeleton OpenAPI file (JSON or YAML format).</div>
+    </div>
+
+    <div class="file-group">
+        <label for="apiKey">Claude API Key:</label>
+        <input type="password" id="apiKey" class="file-input" placeholder="Enter your Anthropic API key">
+        <div class="file-description">Your Claude API key will be used to process the files (never stored).</div>
+    </div>
+
+    <button id="generateBtn" disabled>Generate OpenAPI Specification</button>
+    <div id="uploadStatus" class="status"></div>
+</div>
+
+<div id="result"></div>
+<button id="downloadBtn">Download OpenAPI Specification</button>
+
+<script>
+    // Track uploaded files
+    const uploadedFiles = {
+        contextMap: false,
+        visualGlossary: false,
+        apiSkeleton: false
+    };
+
+    // Get DOM elements
+    const contextMapInput = document.getElementById('contextMap');
+    const visualGlossaryInput = document.getElementById('visualGlossary');
+    const apiSkeletonInput = document.getElementById('apiSkeleton');
+    const apiKeyInput = document.getElementById('apiKey');
+    const generateBtn = document.getElementById('generateBtn');
+    const uploadStatus = document.getElementById('uploadStatus');
+    const resultDiv = document.getElementById('result');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    // Function to check if all required files are uploaded
+    function checkAllFilesUploaded() {
+        if (uploadedFiles.contextMap && uploadedFiles.visualGlossary && uploadedFiles.apiSkeleton) {
+            generateBtn.disabled = false;
+            uploadStatus.textContent = "All files uploaded. Ready to generate!";
+            uploadStatus.className = "status";
+        } else {
+            generateBtn.disabled = true;
+            uploadStatus.textContent = "Please upload all required files.";
+            uploadStatus.className = "status";
+        }
+    }
+
+    // Event listeners for file inputs
+    contextMapInput.addEventListener('change', (event) => {
+        if (event.target.files.length > 0) {
+            uploadedFiles.contextMap = true;
+            uploadStatus.textContent = "Context Map uploaded successfully.";
+            checkAllFilesUploaded();
+        }
+    });
+
+    visualGlossaryInput.addEventListener('change', (event) => {
+        if (event.target.files.length > 0) {
+            uploadedFiles.visualGlossary = true;
+            uploadStatus.textContent = "Visual Glossary uploaded successfully.";
+            checkAllFilesUploaded();
+        }
+    });
+
+    apiSkeletonInput.addEventListener('change', (event) => {
+        if (event.target.files.length > 0) {
+            uploadedFiles.apiSkeleton = true;
+            uploadStatus.textContent = "API Skeleton uploaded successfully.";
+            checkAllFilesUploaded();
+        }
+    });
+
+    // Function to read file as base64
+    function readFileAsBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                // Get base64 data without the prefix (e.g., "data:image/png;base64,")
+                const base64 = reader.result.split(',')[1];
+                resolve(base64);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // Read file as text
+    function readFileAsText(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsText(file);
+        });
+    }
+
+    // Download button click handler
+    downloadBtn.addEventListener('click', () => {
+        const openApiText = resultDiv.textContent;
+        const blob = new Blob([openApiText], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'openapi-specification.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+
+    // Generate button click handler
+    generateBtn.addEventListener('click', async () => {
+        try {
+            // Check API key
+            const apiKey = apiKeyInput.value.trim();
+            if (!apiKey) {
+                throw new Error("API key is required");
+            }
+
+            // Add loading indicator
+            uploadStatus.textContent = "Processing files...";
+            const loadingIndicator = document.createElement('span');
+            loadingIndicator.className = 'loading';
+            uploadStatus.appendChild(loadingIndicator);
+
+            // Disable generate button during processing
+            generateBtn.disabled = true;
+            downloadBtn.style.display = 'none';
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = "Preparing files for analysis...";
+
+            // Read the files
+            const contextMapFile = contextMapInput.files[0];
+            const visualGlossaryFile = visualGlossaryInput.files[0];
+            const apiSkeletonFile = apiSkeletonInput.files[0];
+
+            // Get base64 encodings for images and text for the skeleton
+            const contextMapBase64 = await readFileAsBase64(contextMapFile);
+            const visualGlossaryBase64 = await readFileAsBase64(visualGlossaryFile);
+            const apiSkeletonText = await readFileAsText(apiSkeletonFile);
+
+            resultDiv.textContent = "Files prepared. Sending to Claude API...";
+
+            // Prepare the request to Claude API
+            const requestBody = {
+                model: "claude-3-opus-20240229",
+                max_tokens: 4000,
+                messages: [
+                    {
+                        role: "user",
+                        content: [
+                            {
+                                type: "text",
+                                text: "I'm uploading three files: a context map graphic, a visual glossary graphic, and an OpenAPI REST skeleton file. Please analyze these files and generate a complete OpenAPI specification based on them. The context map shows service relationships, the visual glossary defines key terms, and the skeleton file provides the basic structure to build upon."
+                            },
+                            {
+                                type: "image",
+                                source: {
+                                    type: "base64",
+                                    media_type: contextMapFile.type,
+                                    data: contextMapBase64
+                                }
+                            },
+                            {
+                                type: "image",
+                                source: {
+                                    type: "base64",
+                                    media_type: visualGlossaryFile.type,
+                                    data: visualGlossaryBase64
+                                }
+                            },
+                            {
+                                type: "text",
+                                text: `Here is the OpenAPI skeleton file:\n\n${apiSkeletonText}\n\nPlease generate a complete OpenAPI specification based on all three files. Focus on enriching the paths, adding detailed schemas based on the visual glossary, and structuring the API according to the relationships shown in the context map.`
+                            }
+                        ]
+                    }
+                ]
+            };
+
+            resultDiv.textContent = "Sending files to your backend server...";
+
+            // Make the request to your backend server
+            try {
+                // Send the request to your own backend server
+                const response = await fetch('/api/generate-openapi', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contextMap: contextMapBase64,
+                        visualGlossary: visualGlossaryBase64,
+                        apiSkeleton: apiSkeletonText,
+                        apiKey: apiKey
+                    })
+                });
+
+                if (!response.ok) {
+                    let errorMessage = `Server Error: ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage += ` - ${errorData.error || errorData.message || 'Unknown error'}`;
+                    } catch (e) {
+                        errorMessage += ' - Failed to parse error response';
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                if (!response.ok) {
+                    let errorMessage = `API Error: ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage += ` - ${errorData.error?.message || 'Unknown error'}`;
+                    } catch (e) {
+                        errorMessage += ' - Failed to parse error response';
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                const responseData = await response.json();
+
+                // Process the response from your backend
+                if (responseData.success && responseData.data) {
+                    // Handle the Claude API response from your backend
+                    const claudeResponse = responseData.data;
+
+                    // Get the text response from Claude
+                    if (claudeResponse.content && claudeResponse.content.length > 0) {
+                        let openApiText = '';
+
+                        // Extract OpenAPI specification from Claude's response
+                        const fullResponse = claudeResponse.content[0].text;
+
+                        // Try to extract JSON blocks from the response
+                        const jsonBlockRegex = /```(?:json)?\s*({[\s\S]*?})\s*```/g;
+                        const jsonMatches = [...fullResponse.matchAll(jsonBlockRegex)];
+
+                        if (jsonMatches.length > 0) {
+                            // Use the largest JSON block (likely the OpenAPI spec)
+                            const largestJsonBlock = jsonMatches.reduce((largest, current) =>
+                                current[1].length > largest[1].length ? current : largest
+                            );
+                            openApiText = largestJsonBlock[1];
+                        } else {
+                            // If no JSON blocks, use the full response
+                            openApiText = fullResponse;
+                        }
+
+                        // Display the result
+                        resultDiv.textContent = openApiText;
+                        uploadStatus.textContent = "OpenAPI specification generated successfully!";
+                        uploadStatus.className = "status";
+                        downloadBtn.style.display = 'block';
+                    } else {
+                        throw new Error("No content received from Claude API");
+                    }
+                } else {
+                    throw new Error("Invalid response from backend server");
+                }
+            } catch (fetchError) {
+                throw new Error(`API request failed: ${fetchError.message}`);
+            }
+
+        } catch (error) {
+            console.error("Error:", error);
+            uploadStatus.textContent = "Error: " + error.message;
+            uploadStatus.className = "status error";
+            resultDiv.textContent = "An error occurred: " + error.message;
+        } finally {
+            // Re-enable generate button
+            if (uploadedFiles.contextMap && uploadedFiles.visualGlossary && uploadedFiles.apiSkeleton) {
+                generateBtn.disabled = false;
+            }
+
+            // Remove loading indicator if it exists
+            const loadingIndicator = uploadStatus.querySelector('.loading');
+            if (loadingIndicator) {
+                uploadStatus.removeChild(loadingIndicator);
+            }
+        }
+    });
+</script>
+</body>
+</html>
